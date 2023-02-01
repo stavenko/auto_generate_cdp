@@ -1291,13 +1291,21 @@ pub fn check_json(file_name: &str, commit: &str) -> Protocol {
 
         let path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
         let path = Path::new(&path).join("json").join(file_name);
-        let json = std::fs::read_to_string(path).unwrap();
+        let json = std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("Path {:?}", path));
 
         let protocol: Protocol = serde_json::from_str(&json).unwrap();
 
         protocol
     } else {
-        let json = fetch_json(file_name, commit);
+        let json = if cfg!(feature = "fetch-protocol") {
+            fetch_json(file_name, commit)
+        } else if file_name.contains("js_protocol") {
+            include_str!("../json/js_protocol.json").to_string()
+        } else if file_name.contains("browser_protocol") {
+            include_str!("../json/browser_protocol.json").to_string()
+        } else {
+            panic!("Don't know where to take file from");
+        };
         let protocol: Protocol = serde_json::from_str(&json).unwrap();
 
         protocol
