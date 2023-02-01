@@ -1,4 +1,4 @@
-use std::{iter::FromIterator, path::Path};
+use std::{env, iter::FromIterator, path::Path};
 
 use convert_case::{Case, Casing};
 
@@ -1257,6 +1257,34 @@ pub fn get_events(
     }
 }
 
+pub fn fetch_json(file_name: &str, commit: &str) -> String {
+    let url = format!(
+        "https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/{}/json/{}",
+        commit, file_name
+    );
+    let agent = {
+        let mut builder = ureq::AgentBuilder::new();
+
+        // use HTTP proxy from environment variables if available
+        if let Ok(addr) = env::var("https_proxy")
+            .or_else(|_| env::var("http_proxy"))
+            .or_else(|_| env::var("ALL_PROXY"))
+        {
+            let proxy =
+                ureq::Proxy::new(addr).expect("Invalid proxy specified in environment variables");
+            builder = builder.proxy(proxy);
+        }
+
+        builder.build()
+    };
+    agent
+        .get(&url)
+        .call()
+        .expect("incorrect file name")
+        .into_string()
+        .unwrap()
+}
+
 pub fn check_json(file_name: &str, commit: &str) -> Protocol {
     if cfg!(feature = "docs-rs") || std::env::var("DOCS_RS").is_ok() {
         // code to run when building inside a docs.rs environment
@@ -1269,17 +1297,7 @@ pub fn check_json(file_name: &str, commit: &str) -> Protocol {
 
         protocol
     } else {
-        let url = format!(
-            "https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/{}/json/{}",
-            commit, file_name
-        );
-
-        let json = ureq::get(&url)
-            .call()
-            .expect("incorrect file name")
-            .into_string()
-            .unwrap();
-
+        let json = fetch_json(file_name, commit);
         let protocol: Protocol = serde_json::from_str(&json).unwrap();
 
         protocol

@@ -13,6 +13,9 @@ exclude = [".vscode/*"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+docs-rs = []
+
 [dependencies]
 convert_case = '0.4.0'
 proc-macro2 = '1.0.26'
